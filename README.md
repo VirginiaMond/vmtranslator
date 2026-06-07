@@ -1,148 +1,98 @@
 # vmtranslator
 
-## Integrante
+Tradutor VM para Assembly Hack desenvolvido para o Project 07 do
+Nand2Tetris.
+
+## Integrantes
 
 - André Luis Aguiar do Nascimento
 - Virgínia Maria Mondego Ferreira
 
-## Linguagem e versao
+## Linguagem e versão
 
-- Python 3.10+ (testado com Python 3.x)
+- Python 3.10 ou superior
+- Validado localmente com Python 3.12.3
 
 ## Estrutura do projeto
 
 ```text
 vmtranslator/
-├── project 7/                  # Casos de teste fornecidos pelo projeto
+├── main.py                         # CLI/orquestrador da tradução
 ├── src/
 │   ├── parser/
-│   │   └── parser.py           # Parser de comandos VM
-│   └── __init__.py
+│   │   └── parser.py               # Leitura e classificação dos comandos VM
+│   └── codewriter/
+│       └── codewriter.py           # Geração de Assembly Hack
+├── tests/                          # Testes unitários
+├── project-7/                      # Testes oficiais do Nand2Tetris Project 07
 └── README.md
 ```
 
-## Escopo desta entrega 
+## Escopo
 
-- Parser de arquivos `.vm` com remocao de comentarios e linhas vazias
-- Classificacao dos comandos em:
-  - `C_ARITHMETIC`
-  - `C_PUSH`
-  - `C_POP`
-- API do parser com:
-  - `HasMoreCommands()`
-  - `Advance()`
-  - `CommandType()`
-  - `Arg1()`
-  # VMTranslator
+Esta entrega traduz comandos do Project 07:
 
-  Autores
+- Operações aritméticas e lógicas: `add`, `sub`, `neg`, `eq`, `gt`, `lt`,
+  `and`, `or`, `not`
+- Comandos de memória: `push` e `pop`
+- Segmentos: `constant`, `local`, `argument`, `this`, `that`, `temp`,
+  `pointer` e `static`
 
-  - André Luis Aguiar do Nascimento
-  - Virgínia Maria Mondego Ferreira
+## Como executar
 
-  Visão geral
+Não há etapa de compilação, pois o projeto é escrito em Python.
 
-  Este repositório contém o projeto VMTranslator (Nand2Tetris — Project 07): o *parser* de arquivos `.vm` e os casos de teste originais do Project 07. A tradução completa para Assembly (CodeWriter / CLI).
+Para traduzir um arquivo `.vm`, execute:
 
-  Objetivo desta entrega
+```bash
+python3 main.py caminho/do/arquivo.vm
+```
 
-  - Fornecer um `Parser` funcional para arquivos `.vm` que:
-    - remove comentários e linhas em branco;
-    - tokeniza comandos;
-    - classifica comandos como `C_ARITHMETIC`, `C_PUSH` ou `C_POP`;
-    - expõe a API compatível solicitada pelo enunciado (`HasMoreCommands`, `Advance`, `CommandType`, `Arg1`, `Arg2`).
+O arquivo `.asm` é gerado no mesmo diretório do `.vm`, com o mesmo nome base.
 
-  Estrutura do repositório
+## Exemplo de uso
 
-  ```text
-  vmtranslator/
-  ├── project 7/            # Casos de teste do nand2tetris (fornecidos)
-  ├── src/
-  │   └── parser/
-  │       ├── __init__.py
-  │       └── parser.py     # Parser de comandos VM
-  ├── assets/               # imagens e screenshots (opcional)
-  └── README.md
-  ```
+```bash
+python3 main.py project-7/StackArithmetic/SimpleAdd/SimpleAdd.vm
+```
 
-  Pré-requisitos
+Saída esperada:
 
-  - Python 3.10+ (recomendado)
-  - Nenhuma dependência externa é necessária para o parser.
+```text
+[ok] project-7/StackArithmetic/SimpleAdd/SimpleAdd.vm -> project-7/StackArithmetic/SimpleAdd/SimpleAdd.asm
+```
 
-  Configuração rápida
+Outro exemplo:
 
-  Recomendo criar um ambiente virtual (opcional):
+```bash
+python3 main.py project-7/MemoryAccess/BasicTest/BasicTest.vm
+```
 
-  ```bash
-  python3 -m venv .venv
-  source .venv/bin/activate
+## Testes unitários
 
-  # (opcional) atualizar pip
-  pip install --upgrade pip
-  ```
+Execute:
 
-  Uso — Parser
+```bash
+python3 -m unittest discover -s tests -p "test_*.py"
+```
 
-  Exemplo mínimo para inspecionar um `.vm` (raiz do repositório):
+## Validação com o CPU Emulator
 
-  ```bash
-  python3 - <<'PY'
-  from src.parser import Parser
+Para validar com as ferramentas oficiais do Nand2Tetris:
 
-  p = Parser("project 7/MemoryAccess/BasicTest/BasicTest.vm")
+1. Gere o arquivo `.asm` do teste desejado.
+2. Abra o `CPUEmulator`.
+3. Carregue o script `.tst` correspondente.
+4. Execute o script e compare com o arquivo `.cmp`.
 
-  while p.HasMoreCommands():
-      p.Advance()
-      cmd_type = p.CommandType()
-      a1 = p.Arg1()
-      a2 = p.Arg2() if cmd_type in {"C_PUSH", "C_POP"} else None
-      print(cmd_type, a1, a2)
-  PY
-  ```
+Testes exigidos pela entrega:
 
-  Testes unitários
+```bash
+python3 main.py project-7/StackArithmetic/SimpleAdd/SimpleAdd.vm
+python3 main.py project-7/MemoryAccess/BasicTest/BasicTest.vm
+```
 
-  O repositório inclui testes básicos do parser. Para executá-los:
+Arquivos de comparação:
 
-  ```bash
-  python3 -m unittest discover -s tests -p "test_*.py"
-  ```
-
-  Validação com o CPU Emulator (Nand2Tetris)
-
-  1. Se você dispor de uma implementação `CodeWriter`, gere o `.asm` correspondente a um `.vm` dos diretórios em `project 7/`.
-  2. Abra o `CPUEmulator` do Nand2Tetris.
-  3. No emulador, carregue o script `.tst` correspondente (por exemplo: `project 7/MemoryAccess/BasicTest/BasicTest.tst`).
-  4. Execute o script e verifique se a saída confere com o arquivo `.cmp`.
-
-  Quando a tradução estiver correta, o emulador exibirá:
-
-  ```
-  Comparison ended successfully.
-  ```
-
-  Entrega e commits
-
-  O histórico desta branch foi organizado em commits atômicos. Mensagens sugeridas para o trabalho:
-
-  - `chore(project07): adiciona arquivos base do Project 07`
-  - `feat(parser): implementa analisador de comandos .vm`
-  - `docs(readme): documenta escopo.`
-  - `chore(gitignore): adiciona regras basicas para Python`
-
-  Como adicionar um screenshot do emulador
-
-  Coloque a imagem desejada em `assets/` com o nome `vm_emulator.png` e commite. Exemplo:
-
-  ```bash
-  cp /caminho/para/sua/imagem.png assets/vm_emulator.png
-  git add assets/vm_emulator.png README.md
-  git commit -m "doc(readme): adiciona screenshot do VM Emulator"
-  git push origin feat-parser-readme
-  ```
-
-  Exibição automática (se o arquivo existir):
-
-  ![VM Emulator screenshot](assets/vm_emulator.png)
-
+- `project-7/StackArithmetic/SimpleAdd/SimpleAdd.cmp`
+- `project-7/MemoryAccess/BasicTest/BasicTest.cmp`

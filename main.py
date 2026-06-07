@@ -58,7 +58,7 @@ def translate(input_path: str) -> None:
     finally:
         cw.Close()
 
-    print(f"[ok] {input_path} → {output_path}")
+    print(f"[ok] {input_path} -> {output_path}")
 
 
 def main() -> None:
