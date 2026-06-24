@@ -397,3 +397,7 @@ class CodeWriter:
 
     def WriteReturn(self) -> None: 
         self.write_return()
+
+
+    def set_filename(self, filename: str) -> None:
+        self._static_prefix = os.path.splitext(os.path.basename(filename))[0]

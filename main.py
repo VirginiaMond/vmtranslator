@@ -38,30 +38,32 @@ def translate(input_path: str) -> None:
         FileNotFoundError: Se o arquivo .vm não existir.
         ValueError: Se o arquivo não tiver extensão .vm.
     """
-    if not input_path.endswith(".vm"):
-        raise ValueError(f"Expected a .vm file, got: {input_path!r}")
-
-    if not os.path.isfile(input_path):
-        raise FileNotFoundError(f"File not found: {input_path!r}")
+    vm_files = _get_vm_files(input_path)
+    if not vm_files:
+        raise ValueError(f"Nenhum arquivo .vm encontrado em: {input_path!r}")
 
     output_path = _resolve_output_path(input_path)
-
-    parser = Parser(input_path)
     cw = CodeWriter(output_path)
 
     try:
-        while parser.HasMoreCommands():
-            parser.Advance()
-            cmd_type = parser.CommandType()
+        if os.path.isdir(input_path):
+            cw.WriteInit()
+        for vm_file in vm_files:
+            cw.SetFileName(os.path.basename(vm_file)) 
+            
+            parser = Parser(vm_file)   
+            while parser.HasMoreCommands():
+                parser.Advance()
+                cmd_type = parser.CommandType()
 
-            if cmd_type == "C_ARITHMETIC":
-                cw.WriteArithmetic(parser.Arg1())
+                if cmd_type == "C_ARITHMETIC":
+                    cw.WriteArithmetic(parser.Arg1())
 
-            elif cmd_type == "C_PUSH":
-                cw.WritePush(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_PUSH":
+                    cw.WritePush(parser.Arg1(), parser.Arg2())
 
-            elif cmd_type == "C_POP":
-                cw.WritePop(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_POP":
+                    cw.WritePop(parser.Arg1(), parser.Arg2())
 
     finally:
         cw.Close()
