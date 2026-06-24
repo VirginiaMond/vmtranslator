@@ -8,6 +8,12 @@ class CommandType(str, Enum):
     C_ARITHMETIC = "C_ARITHMETIC"
     C_PUSH = "C_PUSH"
     C_POP = "C_POP"
+    C_LABEL = "C_LABEL"
+    C_GOTO = "C_GOTO"
+    C_IF = "C_IF"
+    C_FUNCTION = "C_FUNCTION"
+    C_RETURN = "C_RETURN"
+    C_CALL = "C_CALL"
 
 
 ARITHMETIC_COMMANDS = {
@@ -20,6 +26,18 @@ ARITHMETIC_COMMANDS = {
     "and",
     "or",
     "not",
+}
+
+
+COMMAND_TYPES = {
+    "push": CommandType.C_PUSH,
+    "pop": CommandType.C_POP,
+    "label": CommandType.C_LABEL,
+    "goto": CommandType.C_GOTO,
+    "if-goto": CommandType.C_IF,
+    "function": CommandType.C_FUNCTION,
+    "return": CommandType.C_RETURN,
+    "call": CommandType.C_CALL,
 }
 
 
@@ -60,16 +78,17 @@ class Parser:
 
         if command in ARITHMETIC_COMMANDS:
             return CommandType.C_ARITHMETIC
-        if command == "push":
-            return CommandType.C_PUSH
-        if command == "pop":
-            return CommandType.C_POP
+        if command in COMMAND_TYPES:
+            return COMMAND_TYPES[command]
 
         raise ValueError(f"Unsupported VM command: {command}")
 
     def arg1(self) -> str:
         current = self._require_current_command()
-        if self.command_type() == CommandType.C_ARITHMETIC:
+        cmd_type = self.command_type()
+        if cmd_type == CommandType.C_RETURN:
+            raise ValueError("arg1 is not valid for C_RETURN commands")
+        if cmd_type == CommandType.C_ARITHMETIC:
             return current.tokens[0]
 
         return current.tokens[1]
@@ -77,8 +96,17 @@ class Parser:
     def arg2(self) -> int:
         current = self._require_current_command()
         cmd_type = self.command_type()
-        if cmd_type not in {CommandType.C_PUSH, CommandType.C_POP}:
-            raise ValueError("arg2 is only valid for C_PUSH and C_POP commands")
+        valid_types = {
+            CommandType.C_PUSH,
+            CommandType.C_POP,
+            CommandType.C_FUNCTION,
+            CommandType.C_CALL,
+        }
+        if cmd_type not in valid_types:
+            raise ValueError(
+                "arg2 is only valid for C_PUSH, C_POP, C_FUNCTION and C_CALL "
+                "commands"
+            )
 
         return int(current.tokens[2])
 

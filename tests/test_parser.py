@@ -4,7 +4,7 @@ Testes unitários – Parser (Parte 1)
 Cobre:
   - Leitura e limpeza de linhas (comentários, linhas em branco)
   - has_more_commands / advance
-  - command_type para C_ARITHMETIC, C_PUSH, C_POP
+  - command_type para todos os comandos das Partes 1 e 2
   - arg1 e arg2
   - Erros esperados
 """
@@ -64,6 +64,23 @@ class TestParserBasic(unittest.TestCase):
         p.advance()
         self.assertEqual(p.command_type(), CommandType.C_POP)
 
+    def test_part_two_command_types(self) -> None:
+        commands = {
+            "label LOOP": CommandType.C_LABEL,
+            "goto LOOP": CommandType.C_GOTO,
+            "if-goto LOOP": CommandType.C_IF,
+            "function Main.main 2": CommandType.C_FUNCTION,
+            "call Main.main 0": CommandType.C_CALL,
+            "return": CommandType.C_RETURN,
+        }
+
+        for command, expected_type in commands.items():
+            with self.subTest(command=command):
+                path = _write_vm(command + "\n")
+                p = Parser(path)
+                p.advance()
+                self.assertEqual(p.command_type(), expected_type)
+
     def test_arg1_arithmetic(self) -> None:
         path = _write_vm("add\n")
         p = Parser(path)
@@ -81,6 +98,38 @@ class TestParserBasic(unittest.TestCase):
         p = Parser(path)
         p.advance()
         self.assertEqual(p.arg2(), 7)
+
+    def test_arg1_for_flow_and_function_commands(self) -> None:
+        for command, expected in (
+            ("label LOOP", "LOOP"),
+            ("goto LOOP", "LOOP"),
+            ("if-goto LOOP", "LOOP"),
+            ("function Main.main 2", "Main.main"),
+            ("call Main.main 1", "Main.main"),
+        ):
+            with self.subTest(command=command):
+                path = _write_vm(command + "\n")
+                p = Parser(path)
+                p.advance()
+                self.assertEqual(p.arg1(), expected)
+
+    def test_arg1_invalid_for_return_raises(self) -> None:
+        path = _write_vm("return\n")
+        p = Parser(path)
+        p.advance()
+        with self.assertRaises(ValueError):
+            p.arg1()
+
+    def test_arg2_for_function_and_call(self) -> None:
+        for command, expected in (
+            ("function Main.main 2", 2),
+            ("call Main.main 3", 3),
+        ):
+            with self.subTest(command=command):
+                path = _write_vm(command + "\n")
+                p = Parser(path)
+                p.advance()
+                self.assertEqual(p.arg2(), expected)
 
     def test_arg2_invalid_for_arithmetic_raises(self) -> None:
         path = _write_vm("add\n")
