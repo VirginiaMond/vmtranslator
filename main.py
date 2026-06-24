@@ -58,12 +58,22 @@ def translate(input_path: str) -> None:
 
                 if cmd_type == "C_ARITHMETIC":
                     cw.WriteArithmetic(parser.Arg1())
-
                 elif cmd_type == "C_PUSH":
                     cw.WritePush(parser.Arg1(), parser.Arg2())
-
                 elif cmd_type == "C_POP":
                     cw.WritePop(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_LABEL":
+                    cw.WriteLabel(parser.Arg1())
+                elif cmd_type == "C_GOTO":
+                    cw.WriteGoto(parser.Arg1())
+                elif cmd_type == "C_IF":
+                    cw.WriteIf(parser.Arg1())
+                elif cmd_type == "C_FUNCTION":
+                    cw.WriteFunction(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_CALL":
+                    cw.WriteCall(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_RETURN":
+                    cw.WriteReturn()
 
     finally:
         cw.Close()
