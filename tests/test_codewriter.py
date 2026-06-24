@@ -239,6 +239,53 @@ class TestWritePop(unittest.TestCase):
             cw.write_pop("unknown", 0)
         cw.close()
 
+
+class TestWriteProgramFlow(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp()
+
+    def test_label_without_function_uses_original_name(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_label("LOOP")
+        cw.close()
+        self.assertIn("(LOOP)", _read(path))
+
+    def test_label_is_scoped_to_current_function(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw._current_function = "Main.main"
+        cw.write_label("LOOP")
+        cw.close()
+        self.assertIn("(Main.main$LOOP)", _read(path))
+
+    def test_goto_jumps_to_scoped_label(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw._current_function = "Main.main"
+        cw.write_goto("LOOP")
+        cw.close()
+        asm = _read(path)
+        self.assertIn("@Main.main$LOOP", asm)
+        self.assertIn("0;JMP", asm)
+
+    def test_if_goto_pops_and_jumps_when_nonzero(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_if("CONTINUE")
+        cw.close()
+        asm = _read(path)
+        self.assertIn("AM=M-1", asm)
+        self.assertIn("@CONTINUE", asm)
+        self.assertIn("D;JNE", asm)
+
+    def test_camel_case_flow_api(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.WriteLabel("START")
+        cw.WriteGoto("START")
+        cw.WriteIf("START")
+        cw.close()
+        asm = _read(path)
+        self.assertIn("(START)", asm)
+        self.assertEqual(asm.count("@START"), 2)
+
 class TestIntegration(unittest.TestCase):
 
     def setUp(self) -> None:
