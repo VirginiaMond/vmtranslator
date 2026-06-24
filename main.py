@@ -22,10 +22,17 @@ def _get_vm_files(path: str) -> list[str]:
     return []
 
 def _resolve_output_path(input_path: str) -> str:
+    output_dir = "output"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     if os.path.isfile(input_path):
-        return os.path.splitext(input_path)[0] + ".asm"
-    dir_name = os.path.basename(os.path.normpath(input_path))
-    return os.path.join(input_path, f"{dir_name}.asm")
+        base_name = os.path.basename(input_path)
+        name_without_ext = os.path.splitext(base_name)[0]
+    else:
+        name_without_ext = os.path.basename(os.path.normpath(input_path))
+    
+    return os.path.join(output_dir, f"{name_without_ext}.asm")
 
 def translate(input_path: str) -> None:
     """
