@@ -239,6 +239,118 @@ class TestWritePop(unittest.TestCase):
             cw.write_pop("unknown", 0)
         cw.close()
 
+
+class TestWriteProgramFlow(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp()
+
+    def test_label_without_function_uses_original_name(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_label("LOOP")
+        cw.close()
+        self.assertIn("(LOOP)", _read(path))
+
+    def test_label_is_scoped_to_current_function(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw._current_function = "Main.main"
+        cw.write_label("LOOP")
+        cw.close()
+        self.assertIn("(Main.main$LOOP)", _read(path))
+
+    def test_goto_jumps_to_scoped_label(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw._current_function = "Main.main"
+        cw.write_goto("LOOP")
+        cw.close()
+        asm = _read(path)
+        self.assertIn("@Main.main$LOOP", asm)
+        self.assertIn("0;JMP", asm)
+
+    def test_if_goto_pops_and_jumps_when_nonzero(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_if("CONTINUE")
+        cw.close()
+        asm = _read(path)
+        self.assertIn("AM=M-1", asm)
+        self.assertIn("@CONTINUE", asm)
+        self.assertIn("D;JNE", asm)
+
+    def test_camel_case_flow_api(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.WriteLabel("START")
+        cw.WriteGoto("START")
+        cw.WriteIf("START")
+        cw.close()
+        asm = _read(path)
+        self.assertIn("(START)", asm)
+        self.assertEqual(asm.count("@START"), 2)
+
+
+class TestWriteCallAndBootstrap(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp()
+
+    def test_call_pushes_return_address_and_saved_segments(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_call("Main.main", 2)
+        cw.close()
+        asm = _read(path)
+        self.assertIn("@VM$ret.0", asm)
+        self.assertIn("(VM$ret.0)", asm)
+        for segment in ("@LCL", "@ARG", "@THIS", "@THAT"):
+            self.assertIn(segment, asm)
+        self.assertEqual(asm.count("M=M+1"), 5)
+
+    def test_call_repositions_arg_and_lcl(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_call("Math.multiply", 2)
+        cw.close()
+        asm = _read(path)
+        arg_setup = [
+            "@SP", "D=M", "@5", "D=D-A", "@2", "D=D-A", "@ARG", "M=D"
+        ]
+        start = next(
+            index
+            for index in range(len(asm))
+            if asm[index:index + len(arg_setup)] == arg_setup
+        )
+        self.assertGreaterEqual(start, 0)
+        self.assertIn("@Math.multiply", asm)
+
+    def test_calls_use_unique_return_labels(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_call("Foo.first", 0)
+        cw.write_call("Foo.second", 0)
+        cw.close()
+        labels = [line for line in _read(path) if line.startswith("(VM$ret.")]
+        self.assertEqual(labels, ["(VM$ret.0)", "(VM$ret.1)"])
+
+    def test_call_rejects_negative_argument_count(self) -> None:
+        cw, _ = _make_writer(self.tmp)
+        with self.assertRaises(ValueError):
+            cw.write_call("Main.main", -1)
+        cw.close()
+
+    def test_bootstrap_sets_sp_and_calls_sys_init(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_init()
+        cw.close()
+        asm = _read(path)
+        self.assertEqual(asm[:4], ["@256", "D=A", "@SP", "M=D"])
+        self.assertIn("@Sys.init", asm)
+        self.assertIn("(VM$ret.0)", asm)
+
+    def test_camel_case_call_and_bootstrap_api(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.WriteInit()
+        cw.WriteCall("Main.main", 0)
+        cw.close()
+        asm = _read(path)
+        self.assertIn("@Sys.init", asm)
+        self.assertIn("@Main.main", asm)
+
 class TestIntegration(unittest.TestCase):
 
     def setUp(self) -> None:
