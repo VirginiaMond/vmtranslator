@@ -352,3 +352,14 @@ class CodeWriter:
     def _write_comment(self, text: str) -> None:
         """Escreve um comentário legível no arquivo de saída."""
         self._file.write(f"// {text}\n")
+
+    def write_function(self, name: str, n_locals: int) -> None:
+        """Declara uma função e reserva espaço para suas variáveis locais."""
+        self._current_function = name
+        self._write_comment(f"function {name} {n_locals}")
+        self._emit(f"({name})")
+        for _ in range(n_locals):
+            self.write_push("constant", 0)
+
+    def WriteFunction(self, name: str, n_locals: int) -> None: 
+        self.write_function(name, n_locals)
