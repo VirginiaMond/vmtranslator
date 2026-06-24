@@ -56,7 +56,7 @@ def translate(input_path: str) -> None:
         if os.path.isdir(input_path):
             cw.WriteInit()
         for vm_file in vm_files:
-            cw.SetFileName(os.path.basename(vm_file)) 
+            cw.set_filename(os.path.basename(vm_file)) 
             
             parser = Parser(vm_file)   
             while parser.HasMoreCommands():
