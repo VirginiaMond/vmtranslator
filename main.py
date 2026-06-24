@@ -13,11 +13,19 @@ from src.parser import Parser
 from src.codewriter import CodeWriter
 
 
-def _resolve_output_path(input_path: str) -> str:
-    """Deriva o caminho do .asm a partir do .vm de entrada."""
-    base, _ = os.path.splitext(input_path)
-    return base + ".asm"
+def _get_vm_files(path: str) -> list[str]:
+    if os.path.isfile(path):
+        return [path] if path.endswith(".vm") else []
+    if os.path.isdir(path):
+        vm_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".vm")]
+        return sorted(vm_files)
+    return []
 
+def _resolve_output_path(input_path: str) -> str:
+    if os.path.isfile(input_path):
+        return os.path.splitext(input_path)[0] + ".asm"
+    dir_name = os.path.basename(os.path.normpath(input_path))
+    return os.path.join(input_path, f"{dir_name}.asm")
 
 def translate(input_path: str) -> None:
     """
