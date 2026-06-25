@@ -35,6 +35,15 @@ def _read(path: str) -> list[str]:
                 lines.append(stripped)
     return lines
 
+
+def _contains_sequence(lines: list[str], expected: list[str]) -> bool:
+    """Retorna True quando expected aparece de forma contígua em lines."""
+    return any(
+        lines[index:index + len(expected)] == expected
+        for index in range(len(lines) - len(expected) + 1)
+    )
+
+
 class TestWriteArithmetic(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -285,6 +294,93 @@ class TestWriteProgramFlow(unittest.TestCase):
         asm = _read(path)
         self.assertIn("(START)", asm)
         self.assertEqual(asm.count("@START"), 2)
+
+
+class TestWriteFunctionAndReturn(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp()
+
+    def test_function_declares_label_and_initializes_locals(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_function("Main.main", 2)
+        cw.close()
+        asm = _read(path)
+        self.assertIn("(Main.main)", asm)
+        self.assertEqual(asm.count("@0"), 2)
+        self.assertEqual(asm.count("M=M+1"), 2)
+
+    def test_function_without_locals_only_declares_label(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_function("Sys.init", 0)
+        cw.close()
+        asm = _read(path)
+        self.assertIn("(Sys.init)", asm)
+        self.assertNotIn("M=M+1", asm)
+
+    def test_function_updates_label_scope(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_function("Main.main", 0)
+        cw.write_label("LOOP")
+        cw.close()
+        self.assertIn("(Main.main$LOOP)", _read(path))
+
+    def test_return_saves_frame_and_return_address(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_return()
+        cw.close()
+        asm = _read(path)
+        self.assertTrue(_contains_sequence(asm, [
+            "@LCL", "D=M", "@R13", "M=D",
+            "@5", "A=D-A", "D=M", "@R14", "M=D",
+        ]))
+
+    def test_return_repositions_return_value_and_sp(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_return()
+        cw.close()
+        asm = _read(path)
+        self.assertTrue(_contains_sequence(asm, [
+            "@SP", "AM=M-1", "D=M",
+            "@ARG", "A=M", "M=D",
+            "@ARG", "D=M+1", "@SP", "M=D",
+        ]))
+
+    def test_return_restores_complete_calling_frame(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_return()
+        cw.close()
+        asm = _read(path)
+        for offset, segment in (
+            ("@1", "@THAT"),
+            ("@2", "@THIS"),
+            ("@3", "@ARG"),
+            ("@4", "@LCL"),
+        ):
+            with self.subTest(segment=segment):
+                self.assertTrue(_contains_sequence(asm, [
+                    "@R13", "D=M", offset, "A=D-A", "D=M", segment, "M=D",
+                ]))
+
+    def test_return_jumps_to_saved_return_address(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.write_return()
+        cw.close()
+        asm = _read(path)
+        self.assertTrue(_contains_sequence(asm, ["@R14", "A=M", "0;JMP"]))
+        self.assertFalse(_contains_sequence(asm, ["@R14", "0;JMP"]))
+
+    def test_camel_case_function_return_and_set_filename_api(self) -> None:
+        cw, path = _make_writer(self.tmp)
+        cw.SetFileName("Class1.vm")
+        cw.WriteFunction("Class1.get", 0)
+        cw.WritePush("static", 2)
+        cw.WriteReturn()
+        cw.close()
+        asm = _read(path)
+        self.assertIn("(Class1.get)", asm)
+        self.assertIn("@Class1.2", asm)
+        self.assertTrue(_contains_sequence(asm, ["@R14", "A=M", "0;JMP"]))
 
 
 class TestWriteCallAndBootstrap(unittest.TestCase):

@@ -393,6 +393,7 @@ class CodeWriter:
             self._emit(f"@{segment}")
             self._emit("M=D")
         self._emit("@R14")
+        self._emit("A=M")
         self._emit("0;JMP") 
 
     def WriteReturn(self) -> None: 
@@ -401,3 +402,6 @@ class CodeWriter:
 
     def set_filename(self, filename: str) -> None:
         self._static_prefix = os.path.splitext(os.path.basename(filename))[0]
+
+    def SetFileName(self, filename: str) -> None:  # noqa: N802
+        self.set_filename(filename)
