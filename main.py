@@ -13,11 +13,26 @@ from src.parser import Parser
 from src.codewriter import CodeWriter
 
 
-def _resolve_output_path(input_path: str) -> str:
-    """Deriva o caminho do .asm a partir do .vm de entrada."""
-    base, _ = os.path.splitext(input_path)
-    return base + ".asm"
+def _get_vm_files(path: str) -> list[str]:
+    if os.path.isfile(path):
+        return [path] if path.endswith(".vm") else []
+    if os.path.isdir(path):
+        vm_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".vm")]
+        return sorted(vm_files)
+    return []
 
+def _resolve_output_path(input_path: str) -> str:
+    output_dir = "output"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    if os.path.isfile(input_path):
+        base_name = os.path.basename(input_path)
+        name_without_ext = os.path.splitext(base_name)[0]
+    else:
+        name_without_ext = os.path.basename(os.path.normpath(input_path))
+    
+    return os.path.join(output_dir, f"{name_without_ext}.asm")
 
 def translate(input_path: str) -> None:
     """
@@ -30,30 +45,42 @@ def translate(input_path: str) -> None:
         FileNotFoundError: Se o arquivo .vm não existir.
         ValueError: Se o arquivo não tiver extensão .vm.
     """
-    if not input_path.endswith(".vm"):
-        raise ValueError(f"Expected a .vm file, got: {input_path!r}")
-
-    if not os.path.isfile(input_path):
-        raise FileNotFoundError(f"File not found: {input_path!r}")
+    vm_files = _get_vm_files(input_path)
+    if not vm_files:
+        raise ValueError(f"Nenhum arquivo .vm encontrado em: {input_path!r}")
 
     output_path = _resolve_output_path(input_path)
-
-    parser = Parser(input_path)
     cw = CodeWriter(output_path)
 
     try:
-        while parser.HasMoreCommands():
-            parser.Advance()
-            cmd_type = parser.CommandType()
+        if os.path.isdir(input_path):
+            cw.WriteInit()
+        for vm_file in vm_files:
+            cw.set_filename(os.path.basename(vm_file)) 
+            
+            parser = Parser(vm_file)   
+            while parser.HasMoreCommands():
+                parser.Advance()
+                cmd_type = parser.CommandType()
 
-            if cmd_type == "C_ARITHMETIC":
-                cw.WriteArithmetic(parser.Arg1())
-
-            elif cmd_type == "C_PUSH":
-                cw.WritePush(parser.Arg1(), parser.Arg2())
-
-            elif cmd_type == "C_POP":
-                cw.WritePop(parser.Arg1(), parser.Arg2())
+                if cmd_type == "C_ARITHMETIC":
+                    cw.WriteArithmetic(parser.Arg1())
+                elif cmd_type == "C_PUSH":
+                    cw.WritePush(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_POP":
+                    cw.WritePop(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_LABEL":
+                    cw.WriteLabel(parser.Arg1())
+                elif cmd_type == "C_GOTO":
+                    cw.WriteGoto(parser.Arg1())
+                elif cmd_type == "C_IF":
+                    cw.WriteIf(parser.Arg1())
+                elif cmd_type == "C_FUNCTION":
+                    cw.WriteFunction(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_CALL":
+                    cw.WriteCall(parser.Arg1(), parser.Arg2())
+                elif cmd_type == "C_RETURN":
+                    cw.WriteReturn()
 
     finally:
         cw.Close()

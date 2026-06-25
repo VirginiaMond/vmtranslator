@@ -352,3 +352,52 @@ class CodeWriter:
     def _write_comment(self, text: str) -> None:
         """Escreve um comentário legível no arquivo de saída."""
         self._file.write(f"// {text}\n")
+
+    def write_function(self, name: str, n_locals: int) -> None:
+        """Declara uma função e reserva espaço para suas variáveis locais."""
+        self._current_function = name
+        self._write_comment(f"function {name} {n_locals}")
+        self._emit(f"({name})")
+        for _ in range(n_locals):
+            self.write_push("constant", 0)
+
+    def WriteFunction(self, name: str, n_locals: int) -> None: 
+        self.write_function(name, n_locals)
+
+    def write_return(self) -> None:
+        """Gera o código para retornar de uma função."""
+        self._write_comment("return")
+        self._emit("@LCL")
+        self._emit("D=M")
+        self._emit("@R13") 
+        self._emit("M=D")
+        self._emit("@5")
+        self._emit("A=D-A")
+        self._emit("D=M")
+        self._emit("@R14") 
+        self._emit("M=D")
+        self._decrement_sp_to_d()
+        self._emit("@ARG")
+        self._emit("A=M")
+        self._emit("M=D") 
+        self._emit("@ARG")
+        self._emit("D=M+1")
+        self._emit("@SP")
+        self._emit("M=D")
+        for i, segment in enumerate(["THAT", "THIS", "ARG", "LCL"], 1):
+            self._emit("@R13")
+            self._emit("D=M")
+            self._emit(f"@{i}")
+            self._emit("A=D-A")
+            self._emit("D=M")
+            self._emit(f"@{segment}")
+            self._emit("M=D")
+        self._emit("@R14")
+        self._emit("0;JMP") 
+
+    def WriteReturn(self) -> None: 
+        self.write_return()
+
+
+    def set_filename(self, filename: str) -> None:
+        self._static_prefix = os.path.splitext(os.path.basename(filename))[0]
